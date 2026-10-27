@@ -6,24 +6,25 @@
 
 <p align="center">
   <strong>在 DSH 里，看清 Token 用量、账户余额与供应商配额。</strong><br>
-  为 <a href="https://github.com/deepseek-ai/deepseek-harness">DeepSeek Harness 桌面端</a>打造的本地用量面板。
+  为 <a href="https://github.com/deepseek-ai/deepseek-harness">DeepSeek Harness Web 版</a>打造的本地用量面板。
 </p>
 
 <p align="center">
   <a href="#安装"><img src="https://img.shields.io/badge/DSH-Desktop-2563eb?style=flat-square" alt="DSH 桌面端"></a>
-  <a href="https://github.com/Jockjrop/dsh-usage-stats/releases/latest"><img src="https://img.shields.io/badge/release-v0.2.5-64748b?style=flat-square" alt="插件版本 0.2.5"></a>
+  <a href="https://github.com/kawaiyui233/dsh-usage-stats/releases/latest"><img src="https://img.shields.io/badge/release-v1.0.0--web.1-64748b?style=flat-square" alt="插件版本 1.0.0-web.1"></a>
+  <a href="https://github.com/kawaiyui233/dsh-usage-stats"><img src="https://img.shields.io/badge/Web%20%E6%94%B9%E9%80%A0-kawaiyui233-7c3aed?style=flat-square" alt="Web 改造版"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-22c55e?style=flat-square" alt="Apache 2.0 许可"></a>
 </p>
 
 <p align="center">
   <a href="README.en.md">English</a><br>
-  <a href="https://github.com/Jockjrop/dsh-usage-stats/releases/latest">下载</a> ·
+  <a href="https://github.com/kawaiyui233/dsh-usage-stats/releases/latest">下载</a> ·
   <a href="#功能">功能</a> ·
   <a href="#安装">安装</a> ·
   <a href="#使用">使用</a> ·
   <a href="#常见问题">常见问题</a> ·
   <a href="CHANGELOG.md">更新日志</a> ·
-  <a href="https://github.com/Jockjrop/dsh-usage-stats/issues">反馈问题</a>
+  <a href="https://github.com/kawaiyui233/dsh-usage-stats/issues">反馈问题</a>
 </p>
 
 <p align="center">
@@ -73,55 +74,33 @@
 
 检测通过随机数样本与参考库对照。排名和库内置信度表示与已知候选的接近程度，不能证明模型身份或能力。读取模型目录、预算和历史结果不会启动推理。
 
-## 安装
+## 安装（Web 版）
 
-当前插件版本为 **0.2.5**，适配 **DSH Desktop `0.2.1-rc.3`**，兼容范围为 `>=0.2.1-rc.1 <=0.2.1-rc.3`（含 0.2.1-rc.1、0.2.1-rc.2、0.2.1-rc.3）。版本不匹配时，宿主插件管理器会拒绝安装或启用。
+当前版本为 **1.0.0-web.1**（Web 改造版），适配 **DSH Web `0.2.1-rc.1` ~ `0.2.1-rc.3`**。本版本去除了上游的 desktop profile 限制，在 `web` profile 下即可挂载。
 
-**推荐通过 DSH Desktop 安装 [npm 包 `@sligqoer/dsh-usage-stats`](https://www.npmjs.com/package/@sligqoer/dsh-usage-stats)。** 已包含预构建模块，无需克隆仓库或在本机构建；通过包名安装后可使用插件页的「检查更新」。
+### 从本仓库安装
 
-### 1. 打开插件安装入口
-
-在 DSH Desktop 主界面侧栏进入 **插件 → 添加插件**。
-
-### 2. 填入完整 npm 包名
+在 DSH Web 的 **插件 → 添加插件** 中，把下面的地址粘贴到 **包名或地址**，然后点击 **安装**：
 
 ```text
-@sligqoer/dsh-usage-stats
+github:kawaiyui233/dsh-usage-stats
 ```
 
-将包名粘贴到 **包名或地址**，点击 **安装**，保留完整的 `@sligqoer/` 前缀。
-
-### 3. 启用并打开面板
-
-点击 **立即启用**，进入 **设置 → 用量统计**。插件管理器提示需要重启时，完全退出并重新打开 DSH Desktop。
-
-<details>
-<summary>安装指定版本或已下载的压缩包</summary>
-
-安装本次版本时，在同一入口填入：
+也可以使用完整 Git 地址：
 
 ```text
-@sligqoer/dsh-usage-stats@0.2.5
+https://github.com/kawaiyui233/dsh-usage-stats.git
 ```
 
-也可从 [GitHub 发布页](https://github.com/Jockjrop/dsh-usage-stats/releases/latest)下载 `.tgz` 安装包和 `SHA256SUMS`，校验后填入压缩包的本地绝对路径，无需解压。
+仓库中已经提交了构建产物 `lib/`，安装时不需要在本机构建。安装完成后点击 **立即启用**，刷新页面，进入 **设置 → 用量统计**。
 
-```powershell
-Get-FileHash ./sligqoer-dsh-usage-stats-0.2.5.tgz -Algorithm SHA256
-```
+> 本版本不会从 npm 发布，**只能通过上面的 GitHub 仓库地址安装**。因为仓库地址不是 npm 包名，插件页的「检查更新」不适用于本版本；需要更新时，先卸载再按同一地址重新安装。
 
-发布附件包含版本安装包 `sligqoer-dsh-usage-stats-0.2.5.tgz`、通用安装包 `dsh-usage-stats.tgz` 和校验文件 `SHA256SUMS`；两个安装包内容一致。
+### 与上游的关系
 
-</details>
-
-<details>
-<summary>更新与迁移</summary>
-
-通过 npm 包名安装的用户可在插件页使用「检查更新」。通过 GitHub 地址、压缩包或本地路径安装的用户，需要下载新版重新安装。
-
-使用旧包名 `dsh-usage-stats` 的用户，先卸载旧包，再安装 `@sligqoer/dsh-usage-stats`。更新保留本地配置与用量数据；升级记录见 [CHANGELOG.md](CHANGELOG.md)。
-
-</details>
+- 上游项目：[`Jockjrop/dsh-usage-stats`](https://github.com/Jockjrop/dsh-usage-stats)（`@sligqoer/dsh-usage-stats`，Apache-2.0）。
+- 本仓库是 **kawaiyui233 的 Web 改造版**，包名为 `@kawaiyui233/dsh-usage-stats`，版本从 `0.2.5` 起跳为 `1.0.0-web.1`，用于区分上游版本。
+- 改造内容见下方「Web 改造说明」。
 
 ## 使用
 
@@ -131,6 +110,27 @@ Get-FileHash ./sligqoer-dsh-usage-stats-0.2.5.tgz -Algorithm SHA256
 4. 在「控制」分别开启或关闭高级模型选择器、模型推理强度和模型检测，编辑自定义配额查询。
 
 检测页按「选择检测模型 → 确认预算 → 检测结果」提示当前步骤。更改模型或参数后，需要重新查看预算；检测中可查看请求进度、逐次采样状态并取消。历史结果保留原模型与参数，检测详情和指纹引擎信息可按需展开。
+
+## Web 改造说明
+
+本仓库是上游 `Jockjrop/dsh-usage-stats` 的 Web 改造版，改造者为 **kawaiyui233**。
+
+| 项目 | 上游 | 本仓库 |
+| --- | --- | --- |
+| 包名 | `@sligqoer/dsh-usage-stats` | `@kawaiyui233/dsh-usage-stats` |
+| 版本 | `0.2.5` | `1.0.0-web.1` |
+| 运行 profile | 仅 `desktop` | `web` 及任何提供宿主服务的 profile |
+| 安装来源 | npm / GitHub Release | GitHub 仓库 `github:kawaiyui233/dsh-usage-stats` |
+
+具体改动：
+
+1. **移除 profile 门禁**：`cordis.patch.yml` 删除了 `!!js "ctx.get('profileContext')?.name !== 'desktop'"` 判断，插件行在 `web` profile 下也会挂载。
+2. **移除宿主侧 profile 判断**：`src/index.js` 的 `apply()` 删除了 `profileContext.name !== 'desktop'` 的提前返回，改为只依赖 `sessionQuery`、`webServer`、`timer` 三个宿主服务；`inject` 同步移除 `profileContext`。
+3. **移除渲染器 preload 桥门禁**：`src/client.js` 的 `apply()` 删除了 `window.dshDesktop` 检查。Web 页面没有 Electron preload 桥，上游会在这里直接退出，导致设置页永远不注册；现在只要有 `slots` 服务就注册「用量统计」设置页。
+4. **更名改版**：包名改为 `@kawaiyui233/dsh-usage-stats`，版本改为 `1.0.0-web.1`，仓库地址、README、CHANGELOG、locale 描述同步更新。
+5. **测试对齐**：原先断言「非 desktop profile 不挂载」的测试改为断言 Web 语义（任意 profile 均挂载、浏览器无 preload 桥也能注册设置页）。
+
+改造保留了上游的 `/api/dsh-usage-stats/*` 本机来源校验，data 目录与缓存文件位置不变，因此升级不会丢失已保存的用量记录。
 
 ## 数据与兼容
 
@@ -153,7 +153,7 @@ Get-FileHash ./sligqoer-dsh-usage-stats-0.2.5.tgz -Algorithm SHA256
 
 **支持 DSH Web 吗？**
 
-当前版本仅支持 DSH Desktop 的 desktop profile。
+支持。本仓库即 Web 改造版：去除了上游仅限 `desktop` profile 的限制，在 `web` profile 下会正常挂载设置页并注册 `/api/dsh-usage-stats` 路由。
 
 **为什么配额卡片不显示或无法获取？**
 
@@ -188,4 +188,4 @@ npm run release
 
 修改 `src/` 后运行 `npm run build` 生成 `lib/`。`src/client.js` 是渲染器模板，`client-messages.js`、`client-styles.js`、`client-format.js` 等模块由构建按标记内联，发布产物仍是单个 `lib/client.js`。`npm run lint` 校验语法、JSON 文档与三语条目；`npm run check:release` 检查版本、构建一致性、第三方完整性与工作区隐私文件；`npm run release` 构建安装包并在独立临时项目中验证安装与加载，输出位于 `release/`。
 
-GitHub 发布流程要求标签与包版本一致（本版为 `v0.2.5`），通过检查后使用同一份安装包发布 npm 与 GitHub Release。npm 可信发布对应的工作流文件为 `.github/workflows/release.yml`。第三方资源、来源版本和许可记录于 `third_party/` 与 [NOTICE](NOTICE)，本项目使用 [Apache-2.0 许可证](LICENSE)。
+GitHub 发布流程要求标签与包版本一致（本版为 `v1.0.0-web.1`），通过检查后使用同一份安装包发布 npm 与 GitHub Release。npm 可信发布对应的工作流文件为 `.github/workflows/release.yml`。第三方资源、来源版本和许可记录于 `third_party/` 与 [NOTICE](NOTICE)，本项目使用 [Apache-2.0 许可证](LICENSE)。

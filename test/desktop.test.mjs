@@ -5,79 +5,82 @@ import vm from 'node:vm'
 import { renderClient } from '../scripts/build.mjs'
 import { apply, inject } from '../src/index.js'
 
-test('the bundle enables both plugin halves only in the desktop profile', () => {
+test('the bundle mounts both plugin halves on the web profile', () => {
   const patch = readFileSync(new URL('../cordis.patch.yml', import.meta.url), 'utf8')
-  const expression = patch.match(/disabled: !!js "([^"]+)"/)?.[1]
-  assert.ok(expression, 'the bundle needs a profile gate')
-  const disabled = new Function('ctx', 'return (' + expression + ')')
-  for (const name of ['desktop', 'web', 'Default', 'headless', 'tui', undefined]) {
-    const ctx = { get: () => name === undefined ? undefined : { name } }
-    assert.equal(disabled(ctx), name !== 'desktop')
-  }
-  // Electron uses this same client bundle format; changing it to "desktop"
-  // would make DSH's client-modules scanner skip the renderer entirely.
+  // Web edition: the upstream desktop-profile gate is gone, so the row has no
+  // `disabled:` expression at all and stays enabled on every profile.
+  assert.doesNotMatch(patch, /disabled:\s*!!js/, 'the web edition must not gate on profileContext')
+  assert.match(patch, /name: '@kawaiyui233\/dsh-usage-stats'/)
+  // The client bundle format stays `web`: the Web UI and Electron share it, and
+  // DSH's client-modules scanner would skip any other platform value.
   const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
   assert.equal(pkg.dsh.client.platform, 'web')
-  assert.ok(inject.includes('profileContext'))
+  // profileContext is no longer a hard dependency of the host half.
+  assert.ok(!inject.includes('profileContext'))
+  assert.deepEqual(inject, ['sessionQuery', 'webServer', 'timer'])
 })
 
-test('non-desktop hosts never register routes, start timers or access usage and quota services', () => {
-  for (const name of ['web', 'Default', 'headless', 'tui', undefined]) {
-    apply({
-      get(service) {
-        assert.equal(service, 'profileContext', 'an unsupported host must stop before accessing other services')
-        return name === undefined ? undefined : { name }
-      },
-      effect() { assert.fail('an unsupported host must not register effects') },
-      interval() { assert.fail('an unsupported host must not start timers') },
-    })
+test('a web host mounts the routes and starts timers like any supported host', async () => {
+  // The host half no longer short-circuits on profileContext, so `apply` reaches
+  // the services it actually needs. Assert it asks only for those services.
+  const requested = []
+  const registered = []
+  const services = {
+    sessionQuery: { listSessions: async () => [] },
+    webServer: { register(route) { registered.push(route.path); return () => {} } },
   }
+  apply({
+    get(service) { requested.push(service); return services[service] },
+    effect(callback) { const dispose = callback(); return typeof dispose === 'function' ? dispose : () => {} },
+    interval: () => () => {},
+    on: () => () => {},
+  })
+  assert.ok(!requested.includes('profileContext'), 'the web edition must not consult profileContext')
+  assert.deepEqual(requested.includes('webServer'), true)
+  assert.ok(registered.length > 0, 'the host half must register its /api routes')
 })
 
-test('browser clients never mount settings, restore a cached model seat or request host data', () => {
+test('browser clients without an Electron preload bridge still register the settings section', () => {
   const source = renderClient()
-  for (const bridge of [undefined, { deviceInfo: 'unavailable' }, { protocolVersion: 'broken' }]) {
-    let plugin
-    const context = {
-      window: {
-        dshDesktop: bridge,
-        localStorage: { getItem() { assert.fail('the browser must not restore desktop preferences') } },
-        __ModuleLoader__: { load(definition) { plugin = definition.factory(() => ({})) } },
-      },
-      document: new Proxy({}, { get() { assert.fail('the browser must not access the DOM') } }),
-      fetch() { assert.fail('the browser must not request desktop data') },
-    }
-    vm.runInNewContext(source, context)
-    plugin.apply({
-      get() { assert.fail('the browser must not access client services') },
-      effect() { assert.fail('the browser must not register effects') },
-    })
+  // A plain browser tab has no `window.dshDesktop`. Upstream bailed out here,
+  // which is exactly why the settings page never appeared on the Web UI.
+  let plugin
+  const registrations = []
+  const slots = {
+    inject(_name, callback) { return callback() },
+    register(options) { registrations.push(options.id); return () => {} },
   }
+  vm.runInNewContext(source, {
+    window: {
+      localStorage: { getItem: () => null },
+      __ModuleLoader__: { load(definition) { plugin = definition.factory(() => ({})) } },
+    },
+    document: { getElementById: () => null, createElement: () => ({}), head: { appendChild() {} } },
+    URLSearchParams,
+    fetch() { assert.fail('registering the settings section must not issue requests') },
+  })
+  plugin.apply({
+    get: name => name === 'slots' ? slots : undefined,
+    effect(callback, label) { return label === 'dsh-usage-stats: settings section' ? callback() : () => {} },
+  })
+  assert.deepEqual(registrations, ['usage-stats'])
 })
 
-test('desktop clients register settings with either supported preload marker', () => {
+test('browser clients without the slots service stay inert', () => {
   const source = renderClient()
-  for (const bridge of [{ protocolVersion: 1 }, { deviceInfo() {} }]) {
+  for (const slots of [undefined, null]) {
     let plugin
-    const registrations = []
-    const slots = {
-      inject(_name, callback) { return callback() },
-      register(options) { registrations.push(options.id); return () => {} },
-    }
     vm.runInNewContext(source, {
       window: {
-        dshDesktop: bridge,
-        localStorage: { getItem: () => null },
+        localStorage: { getItem() { assert.fail('the browser must not restore preferences without slots') } },
         __ModuleLoader__: { load(definition) { plugin = definition.factory(() => ({})) } },
       },
-      document: { getElementById: () => null, createElement: () => ({}), head: { appendChild() {} } },
-      URLSearchParams,
-      fetch() { assert.fail('registering the desktop settings section must not issue requests') },
+      document: new Proxy({}, { get() { assert.fail('the renderer must not touch the DOM without slots') } }),
+      fetch() { assert.fail('the renderer must not request host data without slots') },
     })
     plugin.apply({
-      get: name => name === 'slots' ? slots : undefined,
-      effect(callback, label) { return label === 'dsh-usage-stats: settings section' ? callback() : () => {} },
+      get: () => slots,
+      effect() { assert.fail('the renderer must not register effects without slots') },
     })
-    assert.deepEqual(registrations, ['usage-stats'])
   }
 })

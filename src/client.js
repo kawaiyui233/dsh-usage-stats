@@ -2719,7 +2719,7 @@ function UsageStatsSection(props) {
           React.createElement('div', { className: 'dshus-brand' },
             React.createElement('span', { className: 'dshus-brand-icon', 'aria-hidden': 'true' }),
             React.createElement('h2', { className: 'dshus-title' }, t('用量统计')),
-            React.createElement('a', { className: 'dshus-brand-meta dshus-brand-link', href: 'https://github.com/Jockjrop/dsh-usage-stats', target: '_blank', rel: 'noopener noreferrer', title: t('在 GitHub 查看 dsh-usage-stats') }, 'dsh-usage-stats'),
+            React.createElement('a', { className: 'dshus-brand-meta dshus-brand-link', href: 'https://github.com/kawaiyui233/dsh-usage-stats', target: '_blank', rel: 'noopener noreferrer', title: t('在 GitHub 查看 dsh-usage-stats') }, 'dsh-usage-stats'),
             PLUGIN_VERSION !== '__DSH_USAGE_STATS_VERSION__' && React.createElement('span', { className: 'dshus-brand-meta' }, 'v' + PLUGIN_VERSION),
           ),
           tools,
@@ -3502,14 +3502,12 @@ function registerLocale(ctx) {
 }
 
 function apply(ctx) {
-  // DSH Desktop marks its renderer through the preload bridge dshDesktop.
-  // 0.2.0-rc.2 exposes only { protocolVersion: 1 }; older builds carried a
-  // deviceInfo() function. Accept either marker so the settings section
-  // registers on both, while plain browser tabs (no bridge) still bail out.
-  if (typeof window === 'undefined' || !window.dshDesktop) return
-  var hasDeviceInfo = typeof window.dshDesktop.deviceInfo === 'function'
-  var hasProtocolVersion = typeof window.dshDesktop.protocolVersion === 'number'
-  if (!hasDeviceInfo && !hasProtocolVersion) return
+  // Web edition: the upstream desktop-only guard (`window.dshDesktop` preload
+  // bridge) is removed. The Web UI has no preload bridge, so a plain browser
+  // tab used to bail out here and never registered the settings section. The
+  // section now mounts whenever the host provides the `slots` service; the
+  // host half's /api/dsh-usage-stats routes are what gate real data access.
+  if (typeof window === 'undefined') return
   var slots = ctx.get('slots'); if (!slots) return
   registerLocale(ctx)
   var api = new UsageApi()

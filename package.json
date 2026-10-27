@@ -1,15 +1,15 @@
 {
-  "name": "@sligqoer/dsh-usage-stats",
-  "description": "DSH Desktop 的用量统计、供应商配额、模型检测与控制插件。",
-  "version": "0.2.5",
+  "name": "@kawaiyui233/dsh-usage-stats",
+  "description": "DSH Web 的用量统计、供应商配额、模型检测与控制插件（Web 改造版）。",
+  "version": "1.0.0-web.1",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Jockjrop/dsh-usage-stats.git"
+    "url": "git+https://github.com/kawaiyui233/dsh-usage-stats.git"
   },
-  "homepage": "https://github.com/Jockjrop/dsh-usage-stats#readme",
+  "homepage": "https://github.com/kawaiyui233/dsh-usage-stats#readme",
   "bugs": {
-    "url": "https://github.com/Jockjrop/dsh-usage-stats/issues"
+    "url": "https://github.com/kawaiyui233/dsh-usage-stats/issues"
   },
   "main": "lib/index.js",
   "exports": {

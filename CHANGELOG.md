@@ -1,5 +1,39 @@
 # 更新日志 / Changelog
 
+## 1.0.0-web.1 - 2026-10-27
+
+<a id="v100web1-zh"></a>
+**简体中文** · [English](#v100web1-en)
+
+### 🌐 Web 改造（kawaiyui233）
+
+- 本版本是 `Jockjrop/dsh-usage-stats` 的 **Web 改造版**，改造者 kawaiyui233；包名改为 `@kawaiyui233/dsh-usage-stats`。
+- 移除 `cordis.patch.yml` 中的 desktop profile 门禁，插件行在 `web` profile 下也会挂载。
+- 移除宿主侧 `apply()` 的 `profileContext.name !== 'desktop'` 提前返回；`inject` 改为只依赖 `sessionQuery`、`webServer`、`timer`。
+- 移除渲染器 `apply()` 的 `window.dshDesktop` 检查。Web 页面没有 Electron preload 桥，上游会在此退出，导致设置页不注册；现在只要存在 `slots` 服务就注册「用量统计」设置页。
+- 适配 DSH Web 0.2.1-rc.1 至 0.2.1-rc.3（`>=0.2.1-rc.1 <=0.2.1-rc.3`），兼容范围保持不变。
+- README / CHANGELOG / locale 描述同步改为 Web 版，安装方式改为 GitHub 仓库地址 `github:kawaiyui233/dsh-usage-stats`。
+
+### 🧰 工程化
+
+- 测试从「非 desktop profile 不挂载」改为 Web 语义断言：任意 profile 均挂载、浏览器无 preload 桥也能注册设置页。
+
+<a id="v100web1-en"></a>
+**English** · [简体中文](#v100web1-zh)
+
+### 🌐 Web edition (kawaiyui233)
+
+- This release is the **Web edition** of `Jockjrop/dsh-usage-stats`, modified by kawaiyui233; the package is renamed to `@kawaiyui233/dsh-usage-stats`.
+- Remove the desktop-profile gate from `cordis.patch.yml`, so the row also mounts on the `web` profile.
+- Remove the host-side `profileContext.name !== 'desktop'` early return in `apply()`; `inject` now needs only `sessionQuery`, `webServer` and `timer`.
+- Remove the `window.dshDesktop` check in the renderer `apply()`. A Web page has no Electron preload bridge, so upstream bailed out and never registered the settings page; it now registers whenever the `slots` service exists.
+- Target DSH Web 0.2.1-rc.1 through 0.2.1-rc.3 (`>=0.2.1-rc.1 <=0.2.1-rc.3`); the compatibility range is unchanged.
+- Update README, CHANGELOG and locale descriptions for the Web edition; installation moves to the GitHub repository address `github:kawaiyui233/dsh-usage-stats`.
+
+### 🧰 Tooling
+
+- Retarget the "non-desktop profiles never mount" tests to Web semantics: any profile mounts, and a browser without a preload bridge still registers the settings page.
+
 ## 0.2.5 - 2026-10-24
 
 <a id="v025-zh"></a>

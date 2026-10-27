@@ -2,7 +2,7 @@
  * dsh-usage-stats — host half. Aggregates token usage from every session's
  * durable log (the `assistant/message` events carry `usage` accounting plus
  * provider/model provenance) and serves statistics, quota and control routes
- * under /api/dsh-usage-stats for the desktop settings page (用量统计). The renderer half
+ * under /api/dsh-usage-stats for the Web UI settings page (用量统计). The renderer half
  * (./client) registers the settings section with the heatmap, the 24-hour
  * token chart, and the per-model breakdown.
  *
@@ -20,7 +20,7 @@
  *   - A request waits at most MAX_WAIT_MS for a scan. An unfinished scan or
  *     failed session read marks the current snapshot `stale:true`.
  *
- * The desktop renderer sends its system UTC offset. Sessions with source events are
+ * The browser renderer sends its system UTC offset. Sessions with source events are
  * re-bucketed exactly; old retained sessions use their stored hourly buckets.
  * `?fresh=1` forces a rescan.
  */
@@ -39,8 +39,10 @@ import { getBridge, requireBridge, publishBridge, HUB_SERVICE, USAGE_SERVICE, HU
 
 export const name = 'usage-stats'
 
-/** Services required before the surfaces can mount (timer for the warm loop). */
-export const inject = ['profileContext', 'sessionQuery', 'webServer', 'timer']
+/** Services required before the surfaces can mount (timer for the warm loop).
+ *  Web edition: `profileContext` is no longer required — the row mounts on any
+ *  profile that provides the remaining host services. */
+export const inject = ['sessionQuery', 'webServer', 'timer']
 
 /** Serving a snapshot older than this counts as stale (ms). */
 const CACHE_TTL_MS = 60 * 1000
@@ -55,7 +57,7 @@ const STORE_FILE = 'usage-stats-corpus.json'
 /** Rescan live logs when persisted speed timing fields change. */
 const SPEED_VERSION = 2
 
-/** Fallback for requests without a desktop timezone. */
+/** Fallback for requests without a renderer-supplied timezone. */
 const SYSTEM_TZ = new Date().getTimezoneOffset()
 
 let sqlitePromise = null
@@ -1082,7 +1084,9 @@ export function foldSessionRows(state, options = {}, now = Date.now()) {
 }
 
 export function apply(ctx) {
-  if (ctx.get('profileContext')?.name !== 'desktop') return
+  // Web edition: the upstream desktop-only guard is gone. The row mounts
+  // wherever the host services below exist (the `web` profile provides
+  // sessionQuery, webServer and timer).
 
   const storage = join(resolveHome(), 'storages')
   const preferences = createUsagePreferences(join(storage, 'usage-stats-display.json'), join(storage, 'usage-stats-controls.json'))

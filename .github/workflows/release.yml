@@ -48,7 +48,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           version="$(node -p "require('./package.json').version")"
-          release_assets=("release/sligqoer-dsh-usage-stats-${version}.tgz" "release/dsh-usage-stats.tgz" "release/SHA256SUMS")
+          release_assets=("release/kawaiyui233-dsh-usage-stats-${version}.tgz" "release/dsh-usage-stats.tgz" "release/SHA256SUMS")
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             existing_dir="$RUNNER_TEMP/published-release"
             mkdir -p "$existing_dir"

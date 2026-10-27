@@ -6,24 +6,25 @@
 
 <p align="center">
   <strong>See your token usage, balances, and provider quotas inside DSH.</strong><br>
-  A local usage dashboard for <a href="https://github.com/deepseek-ai/deepseek-harness">DeepSeek Harness Desktop</a>.
+  A local usage dashboard for <a href="https://github.com/deepseek-ai/deepseek-harness">DeepSeek Harness Web</a>.
 </p>
 
 <p align="center">
-  <a href="#installation"><img src="https://img.shields.io/badge/DSH-Desktop-2563eb?style=flat-square" alt="DSH Desktop"></a>
-  <a href="https://github.com/Jockjrop/dsh-usage-stats/releases/latest"><img src="https://img.shields.io/badge/release-v0.2.5-64748b?style=flat-square" alt="Plugin version 0.2.5"></a>
+  <a href="#installation"><img src="https://img.shields.io/badge/DSH-Web-2563eb?style=flat-square" alt="DSH Web"></a>
+  <a href="https://github.com/kawaiyui233/dsh-usage-stats/releases/latest"><img src="https://img.shields.io/badge/release-v1.0.0--web.1-64748b?style=flat-square" alt="Plugin version 1.0.0-web.1"></a>
+  <a href="https://github.com/kawaiyui233/dsh-usage-stats"><img src="https://img.shields.io/badge/Web%20edition-kawaiyui233-7c3aed?style=flat-square" alt="Web edition"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-22c55e?style=flat-square" alt="Apache 2.0 license"></a>
 </p>
 
 <p align="center">
   <a href="README.md">简体中文</a><br>
-  <a href="https://github.com/Jockjrop/dsh-usage-stats/releases/latest">Download</a> ·
+  <a href="https://github.com/kawaiyui233/dsh-usage-stats/releases/latest">Download</a> ·
   <a href="#features">Features</a> ·
   <a href="#installation">Installation</a> ·
   <a href="#usage">Usage</a> ·
   <a href="#faq">FAQ</a> ·
   <a href="CHANGELOG.md">Changelog</a> ·
-  <a href="https://github.com/Jockjrop/dsh-usage-stats/issues">Feedback</a>
+  <a href="https://github.com/kawaiyui233/dsh-usage-stats/issues">Feedback</a>
 </p>
 
 <p align="center">
@@ -73,55 +74,33 @@
 
 Detection compares random-number samples with a reference library. Rankings and library confidence measure similarity to known candidates; they do not prove model identity or capability. Reading catalogs, budgets or saved results does not start inference.
 
-## Installation
+## Installation (Web edition)
 
-Plugin version **0.2.5** supports **DSH Desktop `0.2.1-rc.3`** with the compatibility range `>=0.2.1-rc.1 <=0.2.1-rc.3` (0.2.1-rc.1, 0.2.1-rc.2 and 0.2.1-rc.3). The host plugin manager rejects installation or activation on a mismatched runtime.
+This is version **1.0.0-web.1** (Web edition), for **DSH Web `0.2.1-rc.1` – `0.2.1-rc.3`**. The upstream desktop-profile restriction is removed, so it mounts on the `web` profile.
 
-**Recommended: install the [npm package `@sligqoer/dsh-usage-stats`](https://www.npmjs.com/package/@sligqoer/dsh-usage-stats) through DSH Desktop.** It includes prebuilt modules, needs no Git checkout or local build, and supports Check updates when installed by package name.
+### Install from this repository
 
-### 1. Open the plugin installer
-
-In DSH Desktop's main sidebar, open **Plugins → Add plugin**.
-
-### 2. Enter the full npm package name
+In DSH Web, open **Plugins → Add plugin**, paste the address below into **Package name or address**, and click **Install**:
 
 ```text
-@sligqoer/dsh-usage-stats
+github:kawaiyui233/dsh-usage-stats
 ```
 
-Paste it into **Package name or address**, click **Install**, and keep the full `@sligqoer/` scope.
-
-### 3. Enable and open
-
-Click **Enable now**, then open **Settings → Usage Stats**. Fully exit and reopen DSH Desktop when the plugin manager requests a restart.
-
-<details>
-<summary>Install a specific version or a downloaded archive</summary>
-
-Enter this in the same installer for this release:
+The full Git URL works too:
 
 ```text
-@sligqoer/dsh-usage-stats@0.2.5
+https://github.com/kawaiyui233/dsh-usage-stats.git
 ```
 
-Alternatively, download a `.tgz` and `SHA256SUMS` from the [GitHub release page](https://github.com/Jockjrop/dsh-usage-stats/releases/latest), verify the hash and enter the archive's local absolute path. Do not extract it before installation.
+The build output `lib/` is committed, so nothing is built locally during installation. Click **Enable now**, reload the page, then open **Settings → Usage Stats**.
 
-```powershell
-Get-FileHash ./sligqoer-dsh-usage-stats-0.2.5.tgz -Algorithm SHA256
-```
+> This edition is **not published to npm** — install it only from the GitHub repository address above. Because the source is a repository rather than an npm name, the plugin page's **Check updates** does not apply; to update, uninstall and reinstall from the same address.
 
-Assets include `sligqoer-dsh-usage-stats-0.2.5.tgz`, the equivalent `dsh-usage-stats.tgz`, and `SHA256SUMS`. Both archives contain identical modules.
+### Relationship to upstream
 
-</details>
-
-<details>
-<summary>Updates and migration</summary>
-
-Use **Check updates** for installations made by npm package name. Installations from GitHub URLs, archives or local paths require a new manual installation.
-
-If you use the old `dsh-usage-stats` package name, uninstall it once and install `@sligqoer/dsh-usage-stats`. Saved settings and usage remain available. See [CHANGELOG.md](CHANGELOG.md) for upgrade changes.
-
-</details>
+- Upstream: [`Jockjrop/dsh-usage-stats`](https://github.com/Jockjrop/dsh-usage-stats) (`@sligqoer/dsh-usage-stats`, Apache-2.0).
+- This repository is **kawaiyui233's Web edition**, published as `@kawaiyui233/dsh-usage-stats` with version `1.0.0-web.1` to distinguish it from upstream.
+- See "Web edition changes" below for the diff.
 
 ## Usage
 
@@ -131,6 +110,27 @@ If you use the old `dsh-usage-stats` package name, uninstall it once and install
 4. Use Controls to toggle the advanced model selector, reasoning features and detection independently, or edit custom quota queries.
 
 Detection guides you through choosing a model, confirming the budget and reviewing results. Changing the model or parameters requires a new budget preview. While a test runs, you can follow request progress and sample status or cancel it. Saved results retain their original model and parameters; detection details and engine information expand on demand.
+
+## Web edition changes
+
+This repository is a Web edition of upstream `Jockjrop/dsh-usage-stats`, modified by **kawaiyui233**.
+
+| Item | Upstream | This repository |
+| --- | --- | --- |
+| Package | `@sligqoer/dsh-usage-stats` | `@kawaiyui233/dsh-usage-stats` |
+| Version | `0.2.5` | `1.0.0-web.1` |
+| Profile | `desktop` only | `web` and any profile providing the host services |
+| Install source | npm / GitHub Release | GitHub repo `github:kawaiyui233/dsh-usage-stats` |
+
+Changes:
+
+1. **Profile gate removed** — `cordis.patch.yml` no longer carries `!!js "ctx.get('profileContext')?.name !== 'desktop'"`, so the row mounts on the `web` profile.
+2. **Host-side profile check removed** — `apply()` in `src/index.js` no longer returns early for non-desktop profiles; it relies only on `sessionQuery`, `webServer` and `timer`, and `inject` drops `profileContext`.
+3. **Renderer preload-bridge gate removed** — `apply()` in `src/client.js` no longer requires `window.dshDesktop`. A Web page has no Electron preload bridge, so upstream bailed out there and never registered the settings page; it now registers whenever the `slots` service exists.
+4. **Renamed and re-versioned** — package name, version, repository URLs, README, CHANGELOG and locale descriptions all updated.
+5. **Tests realigned** — assertions that "non-desktop profiles never mount" were rewritten to Web semantics.
+
+The upstream `/api/dsh-usage-stats/*` loopback trust fence is retained, and the data directory and cache file locations are unchanged, so upgrading preserves saved usage.
 
 ## Data and compatibility
 
@@ -188,4 +188,4 @@ npm run release
 
 Edit `src/` and run `npm run build` to generate `lib/`. `src/client.js` is the renderer template; the build inlines `client-messages.js`, `client-styles.js`, `client-format.js` and the other modules at their markers, so the shipped artifact is still a single `lib/client.js`. `npm run lint` checks syntax, JSON documents and the three-language table; `npm run check:release` checks versions, generated files, third-party integrity and private workspace files. `npm run release` builds the package and verifies installation and loading in an isolated temporary project; artifacts go to `release/`.
 
-The GitHub workflow requires the tag to match the package version (`v0.2.5` for this release) and publishes the same verified archive to npm and GitHub Releases. The npm trusted publisher workflow file is `.github/workflows/release.yml`. Third-party assets, source revisions and licenses are recorded in `third_party/` and [NOTICE](NOTICE). This project uses the [Apache-2.0 license](LICENSE).
+The GitHub workflow requires the tag to match the package version (`v1.0.0-web.1` for this release) and publishes the same verified archive to npm and GitHub Releases. The npm trusted publisher workflow file is `.github/workflows/release.yml`. Third-party assets, source revisions and licenses are recorded in `third_party/` and [NOTICE](NOTICE). This project uses the [Apache-2.0 license](LICENSE).

@@ -2,6 +2,21 @@ dsh-usage-stats — third-party notices
 
 Apache-2.0; see LICENSE. The read-only quota UI uses the brand assets described below.
 
+0. Web edition (kawaiyui233)
+----------------------------
+
+This repository is a modified Web edition of dsh-usage-stats, originally
+published at https://github.com/Jockjrop/dsh-usage-stats
+(package @sligqoer/dsh-usage-stats, version 0.2.5, Apache-2.0).
+
+Modifications by kawaiyui233, version 1.0.0-web.1: the desktop-profile mount
+gate was removed from cordis.patch.yml and src/index.js, and the renderer's
+Electron preload-bridge (window.dshDesktop) requirement was removed from
+src/client.js, so the plugin mounts on the DSH Web profile. The package was
+renamed to @kawaiyui233/dsh-usage-stats and documentation, locales and tests
+were updated to match. Upstream copyright and licence terms are unchanged;
+see LICENSE and the original project for full attribution.
+
 1. Bundled brand artwork
 ------------------------
 

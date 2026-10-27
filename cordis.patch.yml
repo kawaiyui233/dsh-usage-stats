@@ -1,16 +1,17 @@
-# dsh-usage-stats bundle patch: inserts the dual-face plugin row into the desktop
-# profile roster. Applied automatically as a bundle layer when the package is
-# installed (its `dsh.bundle.patch` declaration makes `dsh plugin add link:<dir>`
-# join it to `dsh.profile.bundles`).
+# dsh-usage-stats bundle patch (Web edition): inserts the dual-face plugin row
+# into the active profile roster. Applied automatically as a bundle layer when
+# the package is installed (its `dsh.bundle.patch` declaration makes
+# `dsh plugin add <source>` join it to `dsh.profile.bundles`).
 #
 # The row is a bare plugin by package name: the node half (exports ".") runs in
 # the host process (session-log aggregation, /api/dsh-usage-stats routes), and
 # the `dsh.client` declaration in package.json makes the renderer half
-# (exports "./client", served under the scoped package's /plugins/ route) load in the
-# desktop app and register the 用量统计 settings page. The platform declaration
-# stays `web` because that is DSH's renderer bundle format, including Electron.
-# The profile gate applies to both halves; other profiles do not mount this row.
+# (exports "./client", served under the scoped package's /plugins/ route) load
+# in the Web UI and register the 用量统计 settings page.
+#
+# Web edition: the upstream desktop-only profile gate has been removed so the
+# row mounts on the `web` profile (and any other profile that provides the
+# required host services).
 - insert:
     - id: usage-stats
-      name: '@sligqoer/dsh-usage-stats'
-      disabled: !!js "ctx.get('profileContext')?.name !== 'desktop'"
+      name: '@kawaiyui233/dsh-usage-stats'
