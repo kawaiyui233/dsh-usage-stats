@@ -1302,50 +1302,68 @@ function WorkBuddyQuotaCard(props) {
         ))
       }
 
-      // Per-package rows: label, remaining / size, expiry when the upstream
-      // supplies one. Several packages share a name, so index is in the key.
-      var packRows = packs.slice(0, 20).map(function (pack, index) {
-        var remain = Number(pack.remain), size = Number(pack.size)
-        var pct = Number.isFinite(size) && size > 0 && Number.isFinite(remain) ? Math.max(0, Math.min(100, remain / size * 100)) : null
-        var color = pct === null || pct >= 30 ? '#22c55e' : pct >= 10 ? '#f59e0b' : '#ef4444'
-        var expiry = pack.expiresAtMs ? t('到期：{time}', { time: fmtFetched(pack.expiresAtMs) }) : ''
-        return React.createElement('div', { key: pack.packageName + '-' + index, className: 'dshus-quota-row' },
-          React.createElement('div', { className: 'dshus-quota-name' },
-            React.createElement('span', { className: 'dshus-quota-label' }, pack.packageName || t('积分包')),
-            React.createElement('span', { className: 'dshus-quota-detail' },
-              (Number.isFinite(remain) ? fmtExact(Math.round(remain * 100) / 100) : '—') + (Number.isFinite(size) ? ' / ' + fmtExact(size) : '') + (expiry ? ' · ' + expiry : '')),
-          ),
-          pct !== null && React.createElement('div', { className: 'dshus-go-track', role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-valuenow': Math.round(pct) },
-            React.createElement('div', { className: 'dshus-go-fill', style: { width: pct + '%', background: color } })),
-          React.createElement('span', { className: 'dshus-quota-pct', style: { color: color } }, pct === null ? '—' : formatPct(pct)),
-        )
+      // Per-account rows: every account from the pool, with its current credit
+      // balance and today's consumed credits. The package breakdown is
+      // deliberately NOT listed — one account can hold 20+ near-identical
+      // "fission" packages, which buries the per-account numbers the user
+      // actually wants. Balance comes from `credits.balances`; today's usage
+      // comes from the derived daily ledger and defaults to 0 when absent.
+      var usedByAccount = Object.create(null)
+      if (daily && Array.isArray(daily.accounts)) {
+        daily.accounts.forEach(function (row) { usedByAccount[row.accountName] = row })
+      }
+      var pool = Array.isArray(credits.balances) ? credits.balances : []
+      var accountRows = pool.map(function (row, index) {
+        var known = usedByAccount[row.accountName]
+        var balance = Number(row.credits)
+        var used = known ? Number(known.used) || 0 : 0
+        return { accountName: row.accountName, credits: Number.isFinite(balance) ? balance : null,
+          used: used, current: row.current === true, index: index }
+      })
+      // Accounts the ledger knows but the pool no longer lists still belong in
+      // the table (a removed account's usage is real history).
+      if (daily && Array.isArray(daily.accounts)) {
+        daily.accounts.forEach(function (row) {
+          if (accountRows.some(function (item) { return item.accountName === row.accountName })) return
+          accountRows.push({ accountName: row.accountName, credits: row.credits === null || row.credits === undefined ? null : Number(row.credits),
+            used: Number(row.used) || 0, current: false, index: accountRows.length })
+        })
+      }
+      // Current account first, then the biggest balances; usage breaks ties so
+      // an actively spending account stays visible near the top.
+      accountRows.sort(function (left, right) {
+        if (left.current !== right.current) return left.current ? -1 : 1
+        const lc = left.credits === null ? -1 : left.credits, rc = right.credits === null ? -1 : right.credits
+        if (rc !== lc) return rc - lc
+        return (right.used || 0) - (left.used || 0)
       })
 
-      // Daily per-account usage, only when the ledger has recorded a change.
-      var usageRows = daily && Array.isArray(daily.accounts) ? daily.accounts.filter(function (row) { return row.used > 0 }).map(function (row) {
-        return React.createElement('div', { key: row.accountName, className: 'dshus-quota-row' },
+      var accountList = accountRows.map(function (row) {
+        return React.createElement('div', { key: row.accountName + '-' + row.index, className: 'dshus-quota-row dshus-wb-account-row' },
           React.createElement('div', { className: 'dshus-quota-name' },
             React.createElement('span', { className: 'dshus-quota-label' }, row.accountName + (row.current ? ' · ' + t('当前') : '')),
             React.createElement('span', { className: 'dshus-quota-detail' },
-              t('今日已用 {amount}', { amount: fmtExact(row.used) }) + (row.credits !== null && row.credits !== undefined ? ' · ' + t('剩余 {amount}', { amount: fmtExact(Math.round(row.credits * 100) / 100) }) : '')),
+              t('今日已用 {amount}', { amount: fmtExact(Math.round(row.used * 100) / 100) })),
           ),
+          React.createElement('span', { className: 'dshus-wb-account-credits', title: t('剩余积分') },
+            row.credits === null ? '—' : fmtExact(Math.round(row.credits * 100) / 100)),
         )
-      }) : []
+      })
 
       return React.createElement('div', { className: 'dshus-module' },
         React.createElement('div', { className: 'dshus-quota-heading' },
-          React.createElement('h3', null, t(name) + (data.nickname ? ' · ' + data.nickname : '')),
+          React.createElement('h3', null, t(name) + (daily && daily.accounts && daily.accounts.length ? ' · ' + t('{count} 个账号', { count: daily.accounts.length }) : '')),
           fetchedLine,
           refreshBtn,
         ),
         React.createElement('div', { className: 'dshus-statbar dshus-quota-bar' }, statCards),
-        packRows.length > 0 && React.createElement('div', { className: 'dshus-quota-rows' }, packRows),
-        usageRows.length > 0 && React.createElement('div', null,
-          React.createElement('div', { className: 'dshus-quota-heading' }, React.createElement('h3', null, t('今日各账号用量'))),
-          React.createElement('div', { className: 'dshus-quota-rows' }, usageRows),
+        accountList.length > 0 && React.createElement('div', null,
+          React.createElement('div', { className: 'dshus-quota-heading' },
+            React.createElement('h3', null, t('各账号积分与今日消耗'))),
+          React.createElement('div', { className: 'dshus-quota-rows' }, accountList),
         ),
-        daily && usageRows.length === 0 && React.createElement('div', { className: 'dshus-fetched' },
-          t('今日暂无积分变化（消耗会在下次刷新后计入）。')),
+        accountList.length === 0 && React.createElement('div', { className: 'dshus-fetched' },
+          t('未读取到账号积分。')),
       )
     }
 

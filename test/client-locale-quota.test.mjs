@@ -620,3 +620,56 @@ test('usage numbers use k, M and B units in every language', () => {
     assert.doesNotMatch(render(427_680_000), /[亿万]|億/, language)
   }
 })
+
+test('WorkBuddy card lists every account with credits and today usage, not the package breakdown', async () => {
+  const live = {
+    ok: true, available: true, status: 'signed-in', nickname: '宇航长大要当太空人', syncedAt: 1750000000000,
+    // The upstream reports ~23 near-identical "fission" packages; the card must
+    // ignore them and list the per-account pool instead.
+    credits: { total: 2582.59,
+      accounts: Array.from({ length: 23 }, () => ({ packageName: 'CodeBuddy个人版国内运营裂变包', remain: 100, size: 100 })),
+      balances: [
+        { accountName: '宇航长大要当太空人', credits: 2582.59, current: true },
+        { accountName: '156****0966', credits: 2332.7, current: false },
+        { accountName: '157****9883', credits: 2273.83, current: false },
+      ] },
+    daily: { date: '2026-10-27', totalUsed: 0.07, accounts: [
+      { accountName: '宇航长大要当太空人', credits: 2582.59, used: 0.07, current: true },
+      { accountName: '156****0966', credits: 2332.7, used: 0, current: false },
+      { accountName: '157****9883', credits: 2273.83, used: 0, current: false },
+    ] },
+  }
+  const h = harness({
+    fetch: async url => ({ ok: true, json: async () =>
+      url.includes('/controls') ? { ok: true, settings: { autoQuota: false, intervalMinutes: 60, customQueries: [] } }
+      : url.includes('/quota-providers') ? { ok: true, providers: [{ provider: 'workbuddy', name: 'WorkBuddy', queryType: 'adapter', source: 'workbuddy' }] }
+      : url.includes('/provider-quotas') ? { ok: true, quotas: [] }
+      : live }),
+  })
+  find(h.page().tree, node => node.props?.id === 'dshus-tab-quota').props.onClick()
+  // The harness only executes the component it is handed; render the panel
+  // explicitly so its registry effect runs and the adapter card is created.
+  const panel = h.component(h.page().tree, 'ProviderQuotasPanel')
+  assert.ok(panel, 'the quota tab renders the provider panel')
+  const first = h.render(panel.type, panel.props)
+  first.flush()
+  await settle()
+  const card = h.component(h.render(panel.type, panel.props).tree, 'WorkBuddyQuotaCard')
+  assert.ok(card, 'the adapter card is created from the registry')
+
+  const rendered = h.render(card.type, { ...card.props, active: true })
+  rendered.flush()
+  await settle()
+  const text = textOf(h.render(card.type, { ...card.props, active: true }).tree)
+  // Every account is listed with its own balance...
+  for (const name of ['宇航长大要当太空人', '156****0966', '157****9883']) {
+    assert.ok(text.includes(name), 'account row missing: ' + name)
+  }
+  assert.ok(text.includes('2,332.7'), 'per-account balances are shown')
+  // ...including accounts at zero usage today (they used to be filtered out,
+  // which is why only one account appeared). One "used today" label per account
+  // in this English harness.
+  assert.equal((text.match(/Used [\d,.]+ today/g) || []).length, 3, 'all three accounts show today usage')
+  // ...and the 23-package breakdown is NOT rendered.
+  assert.doesNotMatch(text, /裂变包/, 'the package breakdown must not be listed')
+})

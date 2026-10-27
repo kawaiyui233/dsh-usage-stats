@@ -302,6 +302,10 @@ var styles = [
       '.dshus-quota-rows { display: grid; gap: 12px; }',
       '.dshus-quota-bar + .dshus-quota-rows { margin-top: 16px; }',
       '.dshus-quota-row { display: grid; grid-template-columns: minmax(128px, 1.2fr) minmax(0, 2fr) 48px minmax(136px, .9fr); align-items: center; gap: 16px; min-height: 24px; }',
+      // WorkBuddy per-account rows: name + today's usage on the left, the
+      // current balance right-aligned. Two columns, unlike the 4-column metric row.
+      '.dshus-wb-account-row { grid-template-columns: minmax(0, 1fr) auto; }',
+      '.dshus-wb-account-credits { font-size: 15px; font-weight: 600; line-height: 22px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--dsw-alias-label-primary, #1f2430); }',
       '.dshus-quota-name { min-width: 0; }',
       '.dshus-quota-label { display: block; font-size: 14px; font-weight: 500; line-height: 22px; color: var(--dsw-alias-label-secondary, #4b5563); overflow-wrap: anywhere; }',
       '.dshus-quota-detail { display: block; font-size: 11px; line-height: 16px; color: var(--dsw-alias-label-caption, #9ca3af); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }',

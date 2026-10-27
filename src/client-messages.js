@@ -440,6 +440,8 @@ var messages = {
       '未查询': ['Not queried', '未照会'],
       '未获取': ['Not available', '未取得'],
       '未登录': ['Signed out', '未ログイン'],
+      '各账号积分与今日消耗': ['Credits and usage today per account', 'アカウント別のクレジットと本日の使用量'],
+      '未读取到账号积分。': ['No account credits were read.', 'アカウントのクレジットを取得できませんでした。'],
       '刷新 {name} 积分': ['Refresh {name} credits', '{name}のクレジットを更新'],
       '今日已用积分': ['Credits used today', '本日の使用クレジット'],
       '今日已用 {amount}': ['Used {amount} today', '本日 {amount} 使用'],

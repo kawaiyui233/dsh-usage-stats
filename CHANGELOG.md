@@ -1,5 +1,27 @@
 # 更新日志 / Changelog
 
+## 1.0.2-web.1 - 2026-10-27
+
+<a id="v102web1-zh"></a>
+**简体中文** · [English](#v102web1-en)
+
+### 📋 WorkBuddy 改为账号维度列表
+
+- 「配额」页的 WorkBuddy 卡片不再列出积分包明细（一个账号会有 20 多个同名的「裂变包」，把真正有用的信息淹没了），改为**每个账号一行：剩余积分 + 今日消耗**。
+- 修复「只显示一个账号」：原先只列出今日消耗大于 0 的账号，而多数账号当天消耗为 0，导致列表几乎为空、看起来只有一个账号。现在**显示全部账号**，消耗为 0 也保留。
+- 账号按「当前账号优先、余额从高到低」排序；顶部仍显示剩余总积分与今日已用总积分。
+- 兼容范围保持 `>=0.2.1-rc.1 <=0.2.1-rc.3`。
+
+<a id="v102web1-en"></a>
+**English** · [简体中文](#v102web1-zh)
+
+### 📋 WorkBuddy switches to a per-account list
+
+- The WorkBuddy card on the quota tab no longer lists the package breakdown (one account can hold 20+ identically named "fission" packages, which buried the useful numbers). It now shows **one row per account: remaining credits + credits used today**.
+- Fix "only one account shows": accounts used to be filtered to those with non-zero usage today, and most accounts consumed nothing, so the list was nearly empty. **All accounts are now listed**, including zero-usage ones.
+- Accounts sort current-first, then by balance descending; the header still shows total remaining and total used today.
+- Compatibility range stays `>=0.2.1-rc.1 <=0.2.1-rc.3`.
+
 ## 1.0.1-web.1 - 2026-10-27
 
 <a id="v101web1-zh"></a>
