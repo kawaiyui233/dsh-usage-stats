@@ -1,5 +1,41 @@
 # 更新日志 / Changelog
 
+## 1.0.1-web.1 - 2026-10-27
+
+<a id="v101web1-zh"></a>
+**简体中文** · [English](#v101web1-en)
+
+### 💳 WorkBuddy 积分用量（kawaiyui233）
+
+- 修复 WorkBuddy 积分读不到的问题：适配器仍请求已废弃的 `/plugins/dsh-workbuddy-connect/status`（返回 404），改为调用 `dsh-connect-workbuddy` 5.x 的 `/plugins/dsh-connect-workbuddy/usage?region=cn|global`。
+- 适配 5.12.1 的返回结构：积分明细来自 `credits.packages`（旧版为 `credits.accounts`），并补充 `expiringSoon`、积分包到期时间与 `checkin` 签到状态。
+- 新增「配额」页 WorkBuddy 积分卡片：显示剩余总积分、今日已用积分、各积分包剩余/总量/到期时间；按区域显示国内版或国际版。
+- 新增按账号统计的每日用量：上游接口只有当前余额，没有「今日已用」字段，因此由相邻两次余额读数差值推算并持久化到 `usage-stats-workbuddy-daily.json`；充值、签到赠送等余额上升不会被计为负用量，也不会冲抵已发生的消耗。
+- 账号可用性改为按区域判定（`workbuddy` 设置命名空间的 `regions.<区域>.enabled`），国际版关闭时不再错误地显示卡片。
+- 目前每个上游端点返回约 60 KB、需 6–20 秒，因此卡片只在打开配额页或手动刷新时读取。
+- 兼容范围保持 `>=0.2.1-rc.1 <=0.2.1-rc.3`（DSH Web 0.2.1-rc.1、0.2.1-rc.2、0.2.1-rc.3）。
+
+### 🧰 工程化
+
+- 新增「今日每账号用量」台账模块 `src/workbuddy-daily.js` 与对应的回归测试；WorkBuddy 相关测试改用新端点与新结构。
+
+<a id="v101web1-en"></a>
+**English** · [简体中文](#v101web1-zh)
+
+### 💳 WorkBuddy credit usage (kawaiyui233)
+
+- Fix empty WorkBuddy credits: the adapter still requested the retired `/plugins/dsh-workbuddy-connect/status` (404). It now calls dsh-connect-workbuddy 5.x at `/plugins/dsh-connect-workbuddy/usage?region=cn|global`.
+- Adapt to the 5.12.1 payload: credit rows come from `credits.packages` (older builds used `credits.accounts`), plus `expiringSoon`, per-package expiry and `checkin` status.
+- Add a WorkBuddy credit card to the quota tab: total remaining credits, credits used today, and each package's remaining/size/expiry, per region.
+- Add per-account daily usage. The upstream exposes only a current balance, so daily usage is derived from the drop between successive readings and persisted to `usage-stats-workbuddy-daily.json`. Balance increases (top-ups, daily check-in grants) are not recorded as negative usage and never cancel real consumption.
+- Gate availability per region via the `workbuddy` settings namespace `regions.<region>.enabled`, so a disabled international stack no longer shows a card.
+- Each upstream read costs about 60 KB and 6-20 seconds, so the card reads only when the quota tab opens or on manual refresh.
+- Compatibility range stays `>=0.2.1-rc.1 <=0.2.1-rc.3` (DSH Web 0.2.1-rc.1, 0.2.1-rc.2 and 0.2.1-rc.3).
+
+### 🧰 Tooling
+
+- Add the per-account daily ledger (`src/workbuddy-daily.js`) and its regression tests; WorkBuddy tests move to the new endpoint and payload.
+
 ## 1.0.0-web.1 - 2026-10-27
 
 <a id="v100web1-zh"></a>

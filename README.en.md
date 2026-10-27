@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="#installation"><img src="https://img.shields.io/badge/DSH-Web-2563eb?style=flat-square" alt="DSH Web"></a>
-  <a href="https://github.com/kawaiyui233/dsh-usage-stats/releases/latest"><img src="https://img.shields.io/badge/release-v1.0.0--web.1-64748b?style=flat-square" alt="Plugin version 1.0.0-web.1"></a>
+  <a href="https://github.com/kawaiyui233/dsh-usage-stats/releases/latest"><img src="https://img.shields.io/badge/release-v1.0.1--web.1-64748b?style=flat-square" alt="Plugin version 1.0.1-web.1"></a>
   <a href="https://github.com/kawaiyui233/dsh-usage-stats"><img src="https://img.shields.io/badge/Web%20edition-kawaiyui233-7c3aed?style=flat-square" alt="Web edition"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-22c55e?style=flat-square" alt="Apache 2.0 license"></a>
 </p>
@@ -71,12 +71,13 @@
 - **Run independent detection:** follow model selection, budget confirmation and results. Use three samples by default or one for screening, with progress, cancellation, timeouts and usage budgets.
 - **Adjust model settings:** control the advanced model selector and reasoning features independently while retaining model properties, parameter mappings and saved preferences.
 - **Follow the application language:** Chinese, English and Japanese UI text follows DSH's selected language; custom names and quota labels remain unchanged.
+- **See WorkBuddy credits:** the quota tab shows total remaining credits, credits used today, and each package's remaining/size/expiry, plus per-account usage for today.
 
 Detection compares random-number samples with a reference library. Rankings and library confidence measure similarity to known candidates; they do not prove model identity or capability. Reading catalogs, budgets or saved results does not start inference.
 
 ## Installation (Web edition)
 
-This is version **1.0.0-web.1** (Web edition), for **DSH Web `0.2.1-rc.1` – `0.2.1-rc.3`**. The upstream desktop-profile restriction is removed, so it mounts on the `web` profile.
+This is version **1.0.1-web.1** (Web edition), for **DSH Web `0.2.1-rc.1` – `0.2.1-rc.3`**. The upstream desktop-profile restriction is removed, so it mounts on the `web` profile.
 
 ### Install from this repository
 
@@ -99,7 +100,7 @@ The build output `lib/` is committed, so nothing is built locally during install
 ### Relationship to upstream
 
 - Upstream: [`Jockjrop/dsh-usage-stats`](https://github.com/Jockjrop/dsh-usage-stats) (`@sligqoer/dsh-usage-stats`, Apache-2.0).
-- This repository is **kawaiyui233's Web edition**, published as `@kawaiyui233/dsh-usage-stats` with version `1.0.0-web.1` to distinguish it from upstream.
+- This repository is **kawaiyui233's Web edition**, published as `@kawaiyui233/dsh-usage-stats` with version `1.0.1-web.1` to distinguish it from upstream.
 - See "Web edition changes" below for the diff.
 
 ## Usage
@@ -118,7 +119,7 @@ This repository is a Web edition of upstream `Jockjrop/dsh-usage-stats`, modifie
 | Item | Upstream | This repository |
 | --- | --- | --- |
 | Package | `@sligqoer/dsh-usage-stats` | `@kawaiyui233/dsh-usage-stats` |
-| Version | `0.2.5` | `1.0.0-web.1` |
+| Version | `0.2.5` | `1.0.1-web.1` |
 | Profile | `desktop` only | `web` and any profile providing the host services |
 | Install source | npm / GitHub Release | GitHub repo `github:kawaiyui233/dsh-usage-stats` |
 
@@ -131,6 +132,14 @@ Changes:
 5. **Tests realigned** — assertions that "non-desktop profiles never mount" were rewritten to Web semantics.
 
 The upstream `/api/dsh-usage-stats/*` loopback trust fence is retained, and the data directory and cache file locations are unchanged, so upgrading preserves saved usage.
+
+### WorkBuddy credits and daily usage
+
+The WorkBuddy card on the quota tab talks to the installed `dsh-connect-workbuddy` plugin:
+
+- It reads `GET /plugins/dsh-connect-workbuddy/usage?region=cn|global` and shows total credits, per-package rows (remaining / size / expiry) and check-in status.
+- It reads only when the quota tab opens or on manual refresh: each upstream call is roughly 60 KB and takes 6-20 seconds, so there is no background polling.
+- **Daily per-account usage is derived, not reported.** The upstream exposes only a current balance, with no "used today" field. On each read the plugin compares the same account's balance with the previous reading, counts the drop as today's consumption, and persists it to `usage-stats-workbuddy-daily.json`. Balance increases (top-ups, check-ins) only re-baseline and never cancel consumption already recorded, so the first day starts from zero.
 
 ## Data and compatibility
 
@@ -188,4 +197,4 @@ npm run release
 
 Edit `src/` and run `npm run build` to generate `lib/`. `src/client.js` is the renderer template; the build inlines `client-messages.js`, `client-styles.js`, `client-format.js` and the other modules at their markers, so the shipped artifact is still a single `lib/client.js`. `npm run lint` checks syntax, JSON documents and the three-language table; `npm run check:release` checks versions, generated files, third-party integrity and private workspace files. `npm run release` builds the package and verifies installation and loading in an isolated temporary project; artifacts go to `release/`.
 
-The GitHub workflow requires the tag to match the package version (`v1.0.0-web.1` for this release) and publishes the same verified archive to npm and GitHub Releases. The npm trusted publisher workflow file is `.github/workflows/release.yml`. Third-party assets, source revisions and licenses are recorded in `third_party/` and [NOTICE](NOTICE). This project uses the [Apache-2.0 license](LICENSE).
+The GitHub workflow requires the tag to match the package version (`v1.0.1-web.1` for this release) and publishes the same verified archive to npm and GitHub Releases. The npm trusted publisher workflow file is `.github/workflows/release.yml`. Third-party assets, source revisions and licenses are recorded in `third_party/` and [NOTICE](NOTICE). This project uses the [Apache-2.0 license](LICENSE).

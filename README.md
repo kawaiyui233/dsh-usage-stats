@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="#安装"><img src="https://img.shields.io/badge/DSH-Desktop-2563eb?style=flat-square" alt="DSH 桌面端"></a>
-  <a href="https://github.com/kawaiyui233/dsh-usage-stats/releases/latest"><img src="https://img.shields.io/badge/release-v1.0.0--web.1-64748b?style=flat-square" alt="插件版本 1.0.0-web.1"></a>
+  <a href="https://github.com/kawaiyui233/dsh-usage-stats/releases/latest"><img src="https://img.shields.io/badge/release-v1.0.1--web.1-64748b?style=flat-square" alt="插件版本 1.0.1-web.1"></a>
   <a href="https://github.com/kawaiyui233/dsh-usage-stats"><img src="https://img.shields.io/badge/Web%20%E6%94%B9%E9%80%A0-kawaiyui233-7c3aed?style=flat-square" alt="Web 改造版"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-22c55e?style=flat-square" alt="Apache 2.0 许可"></a>
 </p>
@@ -71,12 +71,13 @@
 - **独立运行检测**：按步骤选择模型、确认预算并查看结果；默认采样 3 次，也可选择 1 次初筛，支持进度查看、取消、超时和用量预算控制。
 - **调整模型设置**：分别控制高级模型选择器与模型推理强度，保留已有的模型属性、参数映射和个人设置。
 - **跟随应用语言**：支持中文、英语和日语，随 DSH 所选语言切换；用户自定义名称与配额标签保持原样。
+- **查看 WorkBuddy 积分**：在「配额」页直接看到剩余总积分、今日已用积分与各积分包的剩余/总量/到期时间，并按账号列出今日用量。
 
 检测通过随机数样本与参考库对照。排名和库内置信度表示与已知候选的接近程度，不能证明模型身份或能力。读取模型目录、预算和历史结果不会启动推理。
 
 ## 安装（Web 版）
 
-当前版本为 **1.0.0-web.1**（Web 改造版），适配 **DSH Web `0.2.1-rc.1` ~ `0.2.1-rc.3`**。本版本去除了上游的 desktop profile 限制，在 `web` profile 下即可挂载。
+当前版本为 **1.0.1-web.1**（Web 改造版），适配 **DSH Web `0.2.1-rc.1` ~ `0.2.1-rc.3`**。本版本去除了上游的 desktop profile 限制，在 `web` profile 下即可挂载。
 
 ### 从本仓库安装
 
@@ -99,7 +100,7 @@ https://github.com/kawaiyui233/dsh-usage-stats.git
 ### 与上游的关系
 
 - 上游项目：[`Jockjrop/dsh-usage-stats`](https://github.com/Jockjrop/dsh-usage-stats)（`@sligqoer/dsh-usage-stats`，Apache-2.0）。
-- 本仓库是 **kawaiyui233 的 Web 改造版**，包名为 `@kawaiyui233/dsh-usage-stats`，版本从 `0.2.5` 起跳为 `1.0.0-web.1`，用于区分上游版本。
+- 本仓库是 **kawaiyui233 的 Web 改造版**，包名为 `@kawaiyui233/dsh-usage-stats`，版本从上游 `0.2.5` 起跳为 `1.0.1-web.1`，用于区分上游版本。
 - 改造内容见下方「Web 改造说明」。
 
 ## 使用
@@ -118,7 +119,7 @@ https://github.com/kawaiyui233/dsh-usage-stats.git
 | 项目 | 上游 | 本仓库 |
 | --- | --- | --- |
 | 包名 | `@sligqoer/dsh-usage-stats` | `@kawaiyui233/dsh-usage-stats` |
-| 版本 | `0.2.5` | `1.0.0-web.1` |
+| 版本 | `0.2.5` | `1.0.1-web.1` |
 | 运行 profile | 仅 `desktop` | `web` 及任何提供宿主服务的 profile |
 | 安装来源 | npm / GitHub Release | GitHub 仓库 `github:kawaiyui233/dsh-usage-stats` |
 
@@ -127,10 +128,18 @@ https://github.com/kawaiyui233/dsh-usage-stats.git
 1. **移除 profile 门禁**：`cordis.patch.yml` 删除了 `!!js "ctx.get('profileContext')?.name !== 'desktop'"` 判断，插件行在 `web` profile 下也会挂载。
 2. **移除宿主侧 profile 判断**：`src/index.js` 的 `apply()` 删除了 `profileContext.name !== 'desktop'` 的提前返回，改为只依赖 `sessionQuery`、`webServer`、`timer` 三个宿主服务；`inject` 同步移除 `profileContext`。
 3. **移除渲染器 preload 桥门禁**：`src/client.js` 的 `apply()` 删除了 `window.dshDesktop` 检查。Web 页面没有 Electron preload 桥，上游会在这里直接退出，导致设置页永远不注册；现在只要有 `slots` 服务就注册「用量统计」设置页。
-4. **更名改版**：包名改为 `@kawaiyui233/dsh-usage-stats`，版本改为 `1.0.0-web.1`，仓库地址、README、CHANGELOG、locale 描述同步更新。
+4. **更名改版**：包名改为 `@kawaiyui233/dsh-usage-stats`，版本改为 `1.0.1-web.1`，仓库地址、README、CHANGELOG、locale 描述同步更新。
 5. **测试对齐**：原先断言「非 desktop profile 不挂载」的测试改为断言 Web 语义（任意 profile 均挂载、浏览器无 preload 桥也能注册设置页）。
 
 改造保留了上游的 `/api/dsh-usage-stats/*` 本机来源校验，data 目录与缓存文件位置不变，因此升级不会丢失已保存的用量记录。
+
+### WorkBuddy 积分与每日用量
+
+「配额」页的 WorkBuddy 卡片对接已安装的 `dsh-connect-workbuddy` 插件：
+
+- 读取 `GET /plugins/dsh-connect-workbuddy/usage?region=cn|global`，显示总积分、积分包明细（剩余 / 总量 / 到期时间）与签到状态。
+- 只在打开「配额」页或点刷新时读取一次；该上游接口每次约 60 KB、耗时 6–20 秒，不做后台轮询。
+- **每日每账号用量是推算值**：上游接口只提供当前余额，没有「今日已用」字段。插件在每次读取时比较同一账号前后两次余额，余额下降的部分计入当日消耗并保存到 `usage-stats-workbuddy-daily.json`；充值、签到等余额上升只重新设定基准，不会冲抵已发生的消耗。因此首次安装的当天从 0 开始累计。
 
 ## 数据与兼容
 
@@ -188,4 +197,4 @@ npm run release
 
 修改 `src/` 后运行 `npm run build` 生成 `lib/`。`src/client.js` 是渲染器模板，`client-messages.js`、`client-styles.js`、`client-format.js` 等模块由构建按标记内联，发布产物仍是单个 `lib/client.js`。`npm run lint` 校验语法、JSON 文档与三语条目；`npm run check:release` 检查版本、构建一致性、第三方完整性与工作区隐私文件；`npm run release` 构建安装包并在独立临时项目中验证安装与加载，输出位于 `release/`。
 
-GitHub 发布流程要求标签与包版本一致（本版为 `v1.0.0-web.1`），通过检查后使用同一份安装包发布 npm 与 GitHub Release。npm 可信发布对应的工作流文件为 `.github/workflows/release.yml`。第三方资源、来源版本和许可记录于 `third_party/` 与 [NOTICE](NOTICE)，本项目使用 [Apache-2.0 许可证](LICENSE)。
+GitHub 发布流程要求标签与包版本一致（本版为 `v1.0.1-web.1`），通过检查后使用同一份安装包发布 npm 与 GitHub Release。npm 可信发布对应的工作流文件为 `.github/workflows/release.yml`。第三方资源、来源版本和许可记录于 `third_party/` 与 [NOTICE](NOTICE)，本项目使用 [Apache-2.0 许可证](LICENSE)。

@@ -4,7 +4,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createServer } from 'node:http'
-import { createQuotaControls, executeQuotaQuery, readWorkBuddyQuota, workBuddyQuotaSource, validateQuotaTemplate } from '../src/quota-controls.js'
+import { createQuotaControls, executeQuotaQuery, readWorkBuddyQuota, workBuddyQuotaSource, workBuddyAvailable, validateQuotaTemplate } from '../src/quota-controls.js'
 import { createProviderQuotaReader, quotaTemplate } from '../src/provider-quotas.js'
 import { apply } from '../src/index.js'
 
@@ -410,11 +410,21 @@ test('WorkBuddy proxy stores only safe display data and reads the active host po
   let url
   const body = await readWorkBuddyQuota({ get: (name) => name === 'webServer' ? { port: 19387 } : name === 'settings' ? { describe: () => [{ ns: 'workbuddy' }] } : undefined }, async (target) => {
     url = target
-    return json({ status: 'signed-in', token: 'should-not-store', uid: 'private-id', credits: { total: 9, accounts: [{ packageName: '套餐', remain: 9, size: 10, secret: 'hidden' }] }, models: [{ id: 'offer', free: true, credits: 0 }] })
+    return json({ status: 'signed-in', token: 'should-not-store', uid: 'private-id', accountName: '账号 A',
+      credits: { total: 9, expiringSoon: 2, packages: [{ packageName: '套餐', remain: 9, size: 10, expiresAtMs: 1794133153000, secret: 'hidden' }] },
+      pool: { accounts: [{ accountId: 'raw-id', accountName: '账号 A', credits: 9, current: true }] },
+      checkin: { streakDays: 21, dailyCredit: 100, todayCheckedIn: true },
+      models: [{ id: 'offer', free: true, credits: 0 }] })
   })
-  assert.equal(url, 'http://127.0.0.1:19387/plugins/dsh-workbuddy-connect/status')
+  // dsh-connect-workbuddy 5.x serves one route per region; the legacy
+  // /dsh-workbuddy-connect/status path 404s and left the card empty.
+  assert.equal(url, 'http://127.0.0.1:19387/plugins/dsh-connect-workbuddy/usage?region=cn')
   assert.equal(body.credits.total, 9)
-  assert.doesNotMatch(JSON.stringify(body), /private-id|should-not-store|hidden/)
+  assert.equal(body.credits.accounts.length, 1, 'credits.packages is mapped to display rows')
+  assert.equal(body.credits.accounts[0].packageName, '套餐')
+  assert.equal(body.credits.balances[0].accountName, '账号 A')
+  assert.equal(body.checkin.streakDays, 21)
+  assert.doesNotMatch(JSON.stringify(body), /private-id|should-not-store|hidden|raw-id/)
 })
 
 test('WorkBuddy AI reads the Connect international endpoint and keeps credit responses separate', async () => temporary(async (path) => {
@@ -422,15 +432,18 @@ test('WorkBuddy AI reads the Connect international endpoint and keeps credit res
   const requests = []
   const ctx = { get(name) {
     if (name === 'webServer') return { port: 23456 }
-    if (name === 'settings') return { describe: () => [{ ns: 'workbuddy' }, ...(aiEnabled ? [{ ns: 'workbuddy-ai' }] : [])] }
+    // 5.x exposes ONE `workbuddy` namespace holding both regions; each region
+    // carries its own `enabled` flag, which is what gates the international card.
+    if (name === 'settings') return { describe: () => [{ ns: 'workbuddy',
+      value: { regions: { cn: { enabled: true }, global: { enabled: aiEnabled } } } }] }
     if (name === 'llm') return { listConfigurableProviders: () => [] }
   } }
   const request = async (url) => {
     requests.push(url)
-    const ai = url.endsWith('/ai/status')
+    const ai = url.includes('region=global')
     return json({ status: 'signed-in', token: 'private-token', domain: 'private-domain', credits: {
       total: ai ? 130 : 3403,
-      accounts: [{ packageName: ai ? 'AI 套餐' : '国内套餐', remain: ai ? 130 : 3403, size: ai ? 200 : 4000, secret: 'hidden' }],
+      packages: [{ packageName: ai ? 'AI 套餐' : '国内套餐', remain: ai ? 130 : 3403, size: ai ? 200 : 4000, secret: 'hidden' }],
     } })
   }
   const options = { path, sources: {
@@ -446,8 +459,8 @@ test('WorkBuddy AI reads the Connect international endpoint and keeps credit res
   assert.equal((await controls.read('workbuddy', true)).credits.total, 3403)
   assert.equal((await controls.read('workbuddy-ai', true)).credits.total, 130)
   assert.deepEqual(requests, [
-    'http://127.0.0.1:23456/plugins/dsh-workbuddy-connect/status',
-    'http://127.0.0.1:23456/plugins/dsh-workbuddy-connect/ai/status',
+    'http://127.0.0.1:23456/plugins/dsh-connect-workbuddy/usage?region=cn',
+    'http://127.0.0.1:23456/plugins/dsh-connect-workbuddy/usage?region=global',
   ])
   const restarted = createQuotaControls(ctx, options)
   assert.equal((await restarted.read('workbuddy')).credits.total, 3403)
@@ -482,7 +495,7 @@ test('WorkBuddy joins the query registry, shares persistent caching and skips re
   } }
   const options = { path, sources: { workbuddy: workBuddyQuotaSource(ctx, async (url) => {
     calls++
-    assert.equal(url, 'http://127.0.0.1:23456/plugins/dsh-workbuddy-connect/status')
+    assert.equal(url, 'http://127.0.0.1:23456/plugins/dsh-connect-workbuddy/usage?region=cn')
     if (offline) throw new Error('offline')
     return json({ status, token: 'private-token', credits: { total: 8 }, models: [] })
   }) } }
@@ -606,3 +619,49 @@ test('desktop control routes persist settings and reject cross-origin writes and
     else process.env.DSH_HOME = previousHome
   }
 }))
+
+test('WorkBuddy 5.12.1 payload maps packages, per-account balances and check-in', async () => {
+  // Shape captured from a live dsh-connect-workbuddy 5.12.1
+  // GET /plugins/dsh-connect-workbuddy/usage?region=cn response.
+  const live = {
+    status: 'signed-in',
+    region: 'cn',
+    accountName: '宇航长大要当太空人',
+    accountId: '2f89a065b461bef927fb52ec',
+    tokenExpiresAtMs: 1795010342000,
+    credits: {
+      total: 2595.72,
+      expiringSoon: 0,
+      packages: [
+        { packageName: 'CodeBuddy个人版国内运营裂变包', remain: 95.72, size: 100, monthly: false, expiresAtMs: 1794133153000 },
+        { packageName: 'CodeBuddy个人版国内运营裂变包', remain: 100, size: 100, monthly: false, expiresAtMs: 1794229099000 },
+      ],
+    },
+    pool: { accounts: [
+      { accountId: '2f89a065b461bef927fb52ec', accountName: '宇航长大要当太空人', credits: 2595.72, current: true, member: true, checkedInToday: true },
+      { accountId: 'a9522f05078fbebdd957a0d2', accountName: '156****0966', credits: 2332.7, current: false, member: true },
+    ] },
+    checkin: { active: true, todayCheckedIn: true, streakDays: 21, dailyCredit: 100, todayCredit: 100 },
+    models: [{ id: 'deepseek-v4.1-flash', name: 'Deepseek-V4.1-Flash', creditMultiplier: 0.11 }],
+  }
+  const ctx = { get: (name) => ({
+    webServer: { port: 3080 },
+    settings: { describe: () => [{ ns: 'workbuddy', value: { regions: { cn: { enabled: true }, global: { enabled: false } } } }] },
+  })[name] }
+  const body = await readWorkBuddyQuota(ctx, async () => json(live), 'workbuddy')
+  assert.equal(body.status, 'signed-in')
+  assert.equal(body.credits.total, 2595.72)
+  assert.equal(body.nickname, '宇航长大要当太空人')
+  assert.equal(body.region, 'cn')
+  assert.equal(body.credits.accounts.length, 2, 'each package becomes a display row')
+  assert.equal(body.credits.accounts[0].remain, 95.72)
+  assert.equal(body.credits.accounts[0].size, 100)
+  assert.equal(body.credits.accounts[0].expiresAtMs, 1794133153000)
+  assert.equal(body.credits.balances.length, 2, 'the account pool is surfaced too')
+  assert.equal(body.credits.balances[0].current, true)
+  assert.equal(body.credits.balances[0].credits, 2595.72)
+  assert.equal(body.checkin.streakDays, 21)
+  // The international card stays hidden while its region flag is off.
+  assert.equal(workBuddyAvailable(ctx, 'workbuddy-ai'), false)
+  assert.equal(workBuddyAvailable(ctx, 'workbuddy'), true)
+})

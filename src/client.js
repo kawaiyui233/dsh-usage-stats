@@ -147,9 +147,14 @@ var UsageApi = (function () {
        * WorkBuddy's display-only document through our host cache. Only an
        * explicit refresh or the enabled host timer calls the plugin upstream.
        * Shape:
-       * { status: 'signed-in'|'signed-out', nickname?, expiresAt?, models?,
-       *   credits?: { total, accounts: [{ packageName, remain, size }] },
+       * { status: 'signed-in'|'signed-out', nickname?, region?, expiresAt?, models?,
+       *   credits?: { total, expiringSoon?, accounts: [{ packageName, remain, size, expiresAtMs? }],
+       *               balances?: [{ accountName, credits, current }] },
+       *   checkin?: { streakDays, dailyCredit, todayCheckedIn },
        *   creditsError? }.
+       * `accounts` are WorkBuddy's per-package balance rows (5.12.1 reports
+       * them as `credits.packages`); `balances` are the per-account pool
+       * readings so a multi-account install shows every account.
        */
       UsageApi.prototype.controls = function (patch) {
         return fetch('/api/dsh-usage-stats/controls', patch === undefined ? { headers: { accept: 'application/json' } } : {
@@ -1231,11 +1236,146 @@ function mergeProviderQuota(previous, body, provider) {
       return Object.assign({}, previous, body, { quotas: quotas })
     }
 
+/**
+ * WorkBuddy credit card for the quota tab.
+ *
+ * The WorkBuddy source is an ADAPTER (not an HTTP template), so it returns a
+ * whole document rather than `metrics` rows and never went through
+ * renderQuota — which is why its credits were reachable over the API but never
+ * appeared on the page. This card renders that document directly:
+ * total credits, per-package balances, and the derived daily per-account usage.
+ */
+function WorkBuddyQuotaCard(props) {
+      var source = props.source, name = props.name
+      var state = React.useState({ data: null, loading: false, error: '' })
+      var entry = state[0], setEntry = state[1]
+      var revision = props.revision
+      var load = function (fresh) {
+        setEntry(function (previous) { return Object.assign({}, previous, { loading: true, error: '' }) })
+        props.api.quotaSource(source, { fresh: fresh === true }).then(function (body) {
+          setEntry({ data: body, loading: false, error: '' })
+        }).catch(function (error) {
+          setEntry({ data: null, loading: false, error: String(error && error.message || error) })
+        })
+      }
+      React.useEffect(function () {
+        // Only probe the plugin when the user actually opens the quota tab;
+        // reading credits costs one upstream call per refresh.
+        if (props.active === true) load(false)
+      }, [props.active, revision])
+
+      var data = entry.data
+      var credits = data && data.credits
+      var packs = credits && Array.isArray(credits.accounts) ? credits.accounts : []
+      var daily = data && data.daily
+      var loading = entry.loading
+      var refreshBtn = refreshIconButton(function () { load(true) }, loading, t('刷新 {name} 积分', { name: t(name) }), false)
+      var fetchedLine = React.createElement('div', { className: 'dshus-fetched' },
+        data && data.syncedAt ? t('上次获取时间：{time}', { time: fmtFetched(data.syncedAt) }) : t('尚未获取'))
+
+      if (!data || data.status !== 'signed-in') {
+        var statusLabel = entry.error ? t('未获取') : data && data.status === 'signed-out' ? t('未登录') : t('未获取')
+        return React.createElement('div', { className: 'dshus-module dshus-balance-module' },
+          React.createElement('div', { className: 'dshus-balance-title' },
+            React.createElement('h3', null, t(name)),
+            refreshBtn,
+          ),
+          React.createElement('div', { className: 'dshus-balance-side' },
+            React.createElement('div', { className: 'dshus-balance-value dshus-balance-status' }, statusLabel),
+            React.createElement('div', { className: 'dshus-fetched' },
+              data && data.status === 'signed-out' ? t('请先在 WorkBuddy 插件中登录账号。') : t('尚未获取')),
+          ),
+        )
+      }
+
+      var total = Number(credits.total)
+      var statCards = [
+        React.createElement('div', { key: 'total', className: 'dshus-stat' },
+          React.createElement('div', { className: 'v' }, Number.isFinite(total) ? fmtExact(Math.round(total * 100) / 100) : '—'),
+          React.createElement('div', { className: 'k' }, t('剩余积分')),
+        ),
+      ]
+      if (daily) {
+        statCards.push(React.createElement('div', { key: 'today', className: 'dshus-stat' },
+          React.createElement('div', { className: 'v' }, fmtExact(daily.totalUsed || 0)),
+          React.createElement('div', { className: 'k' }, t('今日已用积分')),
+        ))
+      }
+
+      // Per-package rows: label, remaining / size, expiry when the upstream
+      // supplies one. Several packages share a name, so index is in the key.
+      var packRows = packs.slice(0, 20).map(function (pack, index) {
+        var remain = Number(pack.remain), size = Number(pack.size)
+        var pct = Number.isFinite(size) && size > 0 && Number.isFinite(remain) ? Math.max(0, Math.min(100, remain / size * 100)) : null
+        var color = pct === null || pct >= 30 ? '#22c55e' : pct >= 10 ? '#f59e0b' : '#ef4444'
+        var expiry = pack.expiresAtMs ? t('到期：{time}', { time: fmtFetched(pack.expiresAtMs) }) : ''
+        return React.createElement('div', { key: pack.packageName + '-' + index, className: 'dshus-quota-row' },
+          React.createElement('div', { className: 'dshus-quota-name' },
+            React.createElement('span', { className: 'dshus-quota-label' }, pack.packageName || t('积分包')),
+            React.createElement('span', { className: 'dshus-quota-detail' },
+              (Number.isFinite(remain) ? fmtExact(Math.round(remain * 100) / 100) : '—') + (Number.isFinite(size) ? ' / ' + fmtExact(size) : '') + (expiry ? ' · ' + expiry : '')),
+          ),
+          pct !== null && React.createElement('div', { className: 'dshus-go-track', role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-valuenow': Math.round(pct) },
+            React.createElement('div', { className: 'dshus-go-fill', style: { width: pct + '%', background: color } })),
+          React.createElement('span', { className: 'dshus-quota-pct', style: { color: color } }, pct === null ? '—' : formatPct(pct)),
+        )
+      })
+
+      // Daily per-account usage, only when the ledger has recorded a change.
+      var usageRows = daily && Array.isArray(daily.accounts) ? daily.accounts.filter(function (row) { return row.used > 0 }).map(function (row) {
+        return React.createElement('div', { key: row.accountName, className: 'dshus-quota-row' },
+          React.createElement('div', { className: 'dshus-quota-name' },
+            React.createElement('span', { className: 'dshus-quota-label' }, row.accountName + (row.current ? ' · ' + t('当前') : '')),
+            React.createElement('span', { className: 'dshus-quota-detail' },
+              t('今日已用 {amount}', { amount: fmtExact(row.used) }) + (row.credits !== null && row.credits !== undefined ? ' · ' + t('剩余 {amount}', { amount: fmtExact(Math.round(row.credits * 100) / 100) }) : '')),
+          ),
+        )
+      }) : []
+
+      return React.createElement('div', { className: 'dshus-module' },
+        React.createElement('div', { className: 'dshus-quota-heading' },
+          React.createElement('h3', null, t(name) + (data.nickname ? ' · ' + data.nickname : '')),
+          fetchedLine,
+          refreshBtn,
+        ),
+        React.createElement('div', { className: 'dshus-statbar dshus-quota-bar' }, statCards),
+        packRows.length > 0 && React.createElement('div', { className: 'dshus-quota-rows' }, packRows),
+        usageRows.length > 0 && React.createElement('div', null,
+          React.createElement('div', { className: 'dshus-quota-heading' }, React.createElement('h3', null, t('今日各账号用量'))),
+          React.createElement('div', { className: 'dshus-quota-rows' }, usageRows),
+        ),
+        daily && usageRows.length === 0 && React.createElement('div', { className: 'dshus-fetched' },
+          t('今日暂无积分变化（消耗会在下次刷新后计入）。')),
+      )
+    }
+
 function ProviderQuotasPanel(props) {
       var resource = useQuotaData(function (fresh, provider) { return props.api.providerQuotas({ fresh: fresh, provider: provider }) }, props, mergeProviderQuota)
       var data = resource.data, load = resource.load
       var quotas = data && data.ok === true && Array.isArray(data.quotas) ? data.quotas : []
-      if (!quotas.length && !props.children) return resource.error ? React.createElement('div', { className: 'dshus-error', role: 'alert' }, uiError(resource.error)) : null
+      // Ask the host which quota sources are adapters. Failure is non-fatal:
+      // no adapter cards render and the provider panels keep working.
+      var adapterState = React.useState([])
+      var adapterNames = adapterState[0], setAdapterNames = adapterState[1]
+      var adapterReadState = React.useState(false)
+      var adapterRead = adapterReadState[0], setAdapterRead = adapterReadState[1]
+      React.useEffect(function () {
+        if (props.active !== true || adapterRead) return
+        // Hosts (and older test doubles) may not expose the registry call; in
+        // that case no adapter cards render and nothing else changes.
+        if (typeof props.api.quotaProviders !== 'function') { setAdapterRead(true); return }
+        var live = true
+        props.api.quotaProviders().then(function (body) {
+          if (!live) return
+          var rows = body && Array.isArray(body.providers) ? body.providers : []
+          setAdapterNames(rows.filter(function (row) { return row && row.queryType === 'adapter' && typeof row.source === 'string' })
+            .map(function (row) { return { source: row.source, name: row.name || row.provider } }))
+          setAdapterRead(true)
+        }).catch(function () { if (live) { setAdapterNames([]); setAdapterRead(true) } })
+        return function () { live = false }
+      }, [props.active, adapterRead])
+      var hasAdapters = adapterNames && adapterNames.length > 0
+      if (!quotas.length && !props.children && !hasAdapters) return resource.error ? React.createElement('div', { className: 'dshus-error', role: 'alert' }, uiError(resource.error)) : null
 
       function isBalanceOnly(quota) {
         var metrics = Array.isArray(quota.metrics) ? quota.metrics : []
@@ -1348,9 +1488,23 @@ function ProviderQuotasPanel(props) {
           windowRows.length > 0 && React.createElement('div', { className: 'dshus-quota-rows' }, windowRows),
         )
       }
+      // The WorkBuddy sources are ADAPTERS: they return a document, not
+      // `metrics`, so renderQuota cannot draw them. Render their credit cards
+      // explicitly, ahead of the provider panels.
+      // Adapter-backed sources (WorkBuddy) return a document rather than
+      // `metrics`, so renderQuota cannot draw them. Each adapter gets its own
+      // credit card. The registry is fetched here, once, rather than in the
+      // section, so the section's hook order stays stable.
+      var adapterCards = adapterNames.map(function (adapter) {
+        return React.createElement(WorkBuddyQuotaCard, { key: adapter.source, api: props.api, source: adapter.source,
+          name: adapter.name, active: props.active, revision: props.revision })
+      })
+      // Adapter cards are appended LAST so the existing provider/account panels
+      // keep their established order and the section's render slots stay stable.
       return React.createElement('div', { className: 'dshus-provider-panels', 'data-empty-label': t('已配置供应商的可读取配额会显示在这里') },
         resource.error && React.createElement('div', { className: 'dshus-error', role: 'alert' }, uiError(resource.error)),
-        quotas.filter(isDeepSeek).map(renderQuota), props.children, others.map(renderQuota))
+        quotas.filter(isDeepSeek).map(renderQuota), props.children, others.map(renderQuota),
+        adapterCards.length > 0 && React.createElement('div', { key: 'adapters', className: 'dshus-adapter-panels' }, adapterCards))
     }
 
 function AccountQuotasPanel(props) {
@@ -2216,6 +2370,7 @@ function UsageStatsSection(props) {
       var model = modelState[0]
       var setModel = modelState[1]
 
+
       var heatModeState = React.useState('daily')
       var heatMode = heatModeState[0]
       var setHeatMode = heatModeState[1]
@@ -2321,6 +2476,7 @@ function UsageStatsSection(props) {
       var quotaLoading = quotaLoadingState[0], setQuotaLoading = quotaLoadingState[1]
       var quotaErrorState = React.useState('')
       var quotaError = quotaErrorState[0], setQuotaError = quotaErrorState[1]
+
 
       function changeTab(next) {
         if (next === 'detection' && !showModelDetection) return

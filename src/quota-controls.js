@@ -481,9 +481,24 @@ export function createQuotaControls(ctx, { path, legacyPath, sources, request = 
   }
 }
 
+/**
+ * WorkBuddy Connect 5.12.1 endpoints.
+ *
+ * The plugin moved its read-only routes from the old
+ * `/plugins/dsh-workbuddy-connect/{status,ai/status}` pair to ONE route per
+ * region, selected by `?region=cn|global`:
+ *
+ *   GET /plugins/dsh-connect-workbuddy/usage?region=cn
+ *     -> { status, credits: { total, packages[], expiringSoon, ... }, models[] }
+ *
+ * The legacy paths now 404, which is why the quota card stayed empty. Each
+ * entry below is a region, not a separate product: `workbuddy` is the
+ * domestic (`cn`) stack that the settings namespace `workbuddy` signs in to,
+ * and `workbuddy-ai` is the international (`global`) one.
+ */
 const WORKBUDDY_SOURCES = {
-  workbuddy: { name: 'WorkBuddy', path: '/plugins/dsh-workbuddy-connect/status' },
-  'workbuddy-ai': { name: 'WorkBuddy AI', path: '/plugins/dsh-workbuddy-connect/ai/status' },
+  workbuddy: { name: 'WorkBuddy', path: '/plugins/dsh-connect-workbuddy/usage', region: 'cn' },
+  'workbuddy-ai': { name: 'WorkBuddy AI', path: '/plugins/dsh-connect-workbuddy/usage', region: 'global' },
 }
 
 /** Display the selected built-in account; never import credentials on a page read. */
@@ -520,10 +535,25 @@ export function workBuddyAvailable(ctx, provider = 'workbuddy') {
   if (!Object.hasOwn(WORKBUDDY_SOURCES, provider)) return false
   const port = ctx.get('webServer')?.port
   if (!Number.isInteger(port) || port < 1 || port > 65535) return false
+  // Both regions share the ONE `workbuddy` settings namespace in
+  // dsh-connect-workbuddy 5.x, so a provider-id match alone cannot tell the
+  // domestic stack from the international one. When the namespace exposes its
+  // `regions` map, hold each provider to ITS region's `enabled` flag; fall back
+  // to presence-only detection when the value is not readable, so a host that
+  // withholds settings does not silently hide both cards.
+  const region = WORKBUDDY_SOURCES[provider].region
   try {
-    return (ctx.get('settings')?.describe?.({ redactSecrets: true }) || []).some((row) => row?.ns === provider) ||
-      (ctx.get('llm')?.listProviders?.() || []).some((row) => row?.id === provider) ||
-      (ctx.get('llm')?.listConfigurableProviders?.() || []).some((row) => row?.provider === provider)
+    const rows = ctx.get('settings')?.describe?.({ redactSecrets: true }) || []
+    const row = rows.find((entry) => entry?.ns === 'workbuddy')
+    if (row) {
+      const regions = row.value?.regions
+      const flag = plain(regions) && plain(regions[region]) ? regions[region].enabled : undefined
+      if (flag === false) return false
+      return true
+    }
+    return rows.some((entry) => entry?.ns === provider) ||
+      (ctx.get('llm')?.listProviders?.() || []).some((entry) => entry?.id === provider) ||
+      (ctx.get('llm')?.listConfigurableProviders?.() || []).some((entry) => entry?.provider === provider)
   } catch { return false }
 }
 
@@ -544,7 +574,7 @@ export async function readWorkBuddyQuota(ctx, request = fetch, provider = 'workb
   const source = WORKBUDDY_SOURCES[provider]
   let body
   try {
-    const response = await request('http://127.0.0.1:' + port + source.path, { headers: { accept: 'application/json' }, redirect: 'error', signal: AbortSignal.timeout(12_000) })
+    const response = await request('http://127.0.0.1:' + port + source.path + '?region=' + source.region, { headers: { accept: 'application/json' }, redirect: 'error', signal: AbortSignal.timeout(20_000) })
     if (!response.ok) return { ok: true, available: true, status: 'unavailable' }
     body = await readBoundedJson(response)
   } catch { return { ok: true, available: true, status: 'unavailable' } }
@@ -553,9 +583,36 @@ export async function readWorkBuddyQuota(ctx, request = fetch, provider = 'workb
   if (body.status !== 'signed-in') return { ok: true, available: true, status: 'unavailable' }
   if (!plain(body.credits) || number(body.credits.total) === null) return { ok: true, available: true, status: 'unavailable' }
   const text = (value) => typeof value === 'string' ? value.slice(0, 160) : ''
+  // 5.12.1 reports per-package balance rows in `credits.packages`. Older
+  // builds used `credits.accounts`; accept both so a user who did not update
+  // the plugin still gets a populated card.
+  const packs = Array.isArray(body.credits.packages) ? body.credits.packages
+    : Array.isArray(body.credits.accounts) ? body.credits.accounts : []
+  const accountName = text(body.accountName)
+  const pool = plain(body.pool) && Array.isArray(body.pool.accounts) ? body.pool.accounts : []
   return {
     ok: true, available: true, status: 'signed-in', syncedAt: Date.now(),
-    credits: { total: number(body.credits.total), accounts: (Array.isArray(body.credits.accounts) ? body.credits.accounts : []).slice(0, 200).filter(plain).map((row) => ({ packageName: text(row.packageName), remain: number(row.remain), size: number(row.size) })) },
+    ...accountName ? { nickname: accountName } : {},
+    region: source.region,
+    credits: {
+      total: number(body.credits.total),
+      ...number(body.credits.expiringSoon) > 0 ? { expiringSoon: number(body.credits.expiringSoon) } : {},
+      ...number(body.credits.nearestExpiryMs) !== null ? { nearestExpiryMs: number(body.credits.nearestExpiryMs) } : {},
+      accounts: packs.slice(0, 200).filter(plain).map((row) => ({
+        packageName: text(row.packageName), remain: number(row.remain), size: number(row.size),
+        ...row.monthly === true ? { monthly: true } : {},
+        ...number(row.expiresAtMs) !== null ? { expiresAtMs: number(row.expiresAtMs) } : {},
+      })),
+      // Per-account balances, so a multi-account pool shows every account
+      // rather than only the selected one. Display-only.
+      ...pool.length ? { balances: pool.slice(0, 200).filter(plain).map((row) => ({
+        accountName: text(row.accountName), credits: number(row.credits), current: row.current === true,
+      })).filter((row) => row.credits !== null) } : {},
+    },
+    ...plain(body.checkin) ? { checkin: {
+      streakDays: number(body.checkin.streakDays), dailyCredit: number(body.checkin.dailyCredit),
+      todayCheckedIn: body.checkin.todayCheckedIn === true,
+    } } : {},
     models: (Array.isArray(body.models) ? body.models : []).slice(0, 200).filter(plain).map((row) => ({ id: text(row.id), name: text(row.name), free: row.free === true, badges: (Array.isArray(row.badges) ? row.badges : []).filter((tag) => typeof tag === 'string').slice(0, 10).map(text), credits: typeof row.credits === 'string' || typeof row.credits === 'number' ? text(String(row.credits)) : undefined })),
   }
 }
